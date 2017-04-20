@@ -1,0 +1,38 @@
+[
+	{ "province":"강원도", "municipality":"고성군", "code":32400 },
+	{ "province":"경상남도", "municipality":"고성군", "code":38340 },
+
+	{ "province":"부산광역시", "municipality":"북구", "code":21080 },
+	{ "province":"대구광역시", "municipality":"북구", "code":22050 },
+	{ "province":"광주광역시", "municipality":"북구", "code":24040 },
+	{ "province":"울산광역시", "municipality":"북구", "code":26040 },
+
+	{ "province":"부산광역시", "municipality":"동구", "code":21030 },
+	{ "province":"대구광역시", "municipality":"동구", "code":22020 },
+	{ "province":"인천광역시", "municipality":"동구", "code":23020 },
+	{ "province":"광주광역시", "municipality":"동구", "code":24010 },
+	{ "province":"대전광역시", "municipality":"동구", "code":25010 },
+	{ "province":"울산광역시", "municipality":"동구", "code":26030 },
+
+	{ "province":"부산광역시", "municipality":"남구", "code":21070 },
+	{ "province":"대구광역시", "municipality":"남구", "code":22040 },
+	{ "province":"인천광역시", "municipality":"남구", "code":23030 },
+	{ "province":"광주광역시", "municipality":"남구", "code":24030 },
+	{ "province":"울산광역시", "municipality":"남구", "code":26020 },
+
+	{ "province":"서울특별시", "municipality":"중구", "code":11020 },
+	{ "province":"부산광역시", "municipality":"중구", "code":21010 },
+	{ "province":"대구광역시", "municipality":"중구", "code":22010 },
+	{ "province":"인천광역시", "municipality":"중구", "code":23010 },
+	{ "province":"대전광역시", "municipality":"중구", "code":25020 },
+	{ "province":"울산광역시", "municipality":"중구", "code":26010 },
+
+	{ "province":"부산광역시", "municipality":"서구", "code":21100 },
+	{ "province":"대구광역시", "municipality":"서구", "code":22030 },
+	{ "province":"인천광역시", "municipality":"서구", "code":23080 },
+	{ "province":"광주광역시", "municipality":"서구", "code":24020 },
+	{ "province":"대전광역시", "municipality":"서구", "code":25030 },
+
+	{ "province":"서울특별시", "municipality":"강서구", "code":11160 },
+	{ "province":"부산광역시", "municipality":"강서구", "code":21120 }
+]
