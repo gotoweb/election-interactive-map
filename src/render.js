@@ -11,13 +11,16 @@ var path = d3.geoPath().projection(proj);
 var color = ['red', 'green'];
 var concentration = d3.scaleLinear().domain([50, 100]).range([0.1, 1]);
 
-function asTable(data) {
-    var table = d3.select('body').append('table');
+function asTable(data, container) {
+    if(!container) {
+        container = 'body';
+    }
+    // var table = d3.select('body').append('table');
+    var table = d3.select(container).append('table');
     
-    // console.log(data);
     var columns = Object.keys(data[0].properties);
     columns.push('city');
-    console.log(columns);
+    // console.log(columns);
     var headers = table.append('thead').append('tr').selectAll('tr')
     .data(columns)
     .enter()
@@ -38,10 +41,16 @@ function asTable(data) {
     .enter()
         .append('td')
         .text(d => d.value)
+    
+    return table;
 }
 
-function asMap(data) {
-    var svg = d3.select("body").append("svg")
+function asMap(data, container) {
+    if(!container) {
+        container = 'body';
+    }
+
+    var svg = d3.select(container).append("svg")
         .attr("width", w)
         .attr("height", h);
         
@@ -67,6 +76,7 @@ function asMap(data) {
             return concentration(d.properties.election['득표율']);
         });
     
+    return svg;
 }
 
 

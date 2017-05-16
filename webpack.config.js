@@ -1,9 +1,12 @@
 var path = require('path');
 
 module.exports = {
-  entry: './index.js',
+  entry: {
+    'bundle': './index.js',
+    'view4': './view/view4.js'
+  },
   output: {
-    filename: 'bundle.js',
+    filename: '[name].js',
     path: path.resolve(__dirname, 'dist'),
     libraryTarget: 'umd'
   }
