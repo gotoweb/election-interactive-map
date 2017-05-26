@@ -4,6 +4,7 @@ class Timer {
         this.tickValue = 0;
         this.opt = opt || {};
         this.speed = this.opt._speed || 1000;
+        this.isPaused = false;
         
         this._initTimer();
     }
@@ -34,6 +35,7 @@ class Timer {
     }
 
     pause() {
+        this.isPaused = true;
         clearInterval(this.playTimer);
         this.playTimer = null;
 
@@ -43,6 +45,7 @@ class Timer {
     }
 
     resume() {
+        this.isPaused = false;
         this._initTimer();
     }
     

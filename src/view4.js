@@ -5,12 +5,25 @@ var d3 = require('d3');
 var Timer = require('../dist/bundle').default.Timer;
 
 var chunkSize = 1024 * 1024 * 1; // 1MB
-
+// var SPEED = 20;
+var SPEED = 500;
 var f = d3.timeParse("%Y%m%d%H%M");
-var step = 0;
-var lastKey = '201212191840';
-var cut = '';
-var streamer, timer, keys, map, cache, offset;
+
+var step, lastKey, cut, streamer, timer, keys, map, cache, offset, renderer, isInit = true;
+
+function clear() {
+    step = 0;
+    lastKey = '201212191840';
+    cut = '';
+    streamer = undefined;
+    timer = undefined;
+    keys = undefined;
+    map = undefined;
+    cache = undefined;
+    offset = undefined;
+    renderer = undefined;    
+    isInit = true;
+}
 
 function trimFromWholeCountry(json) {
     var index = 0;
@@ -43,10 +56,11 @@ function isNeedToLoad(key) {
 }            
 
 function trigger(value) {
-    if(isNeedToLoad( getKey(value) )) {
-        console.log('-------', step, value, getKey(value));
+    var needs = isNeedToLoad( getKey(value) );
+    if(needs) {
+        console.log('-------', step, value, getKey(value), offset);
         // var offset = contlen;
-        
+
         step++;
         streamer.readChunk(offset * step);
         lastKey = keys[keys.length - 1];
@@ -60,19 +74,33 @@ function trigger(value) {
         // console.log(lastKey)
         // console.log( getKey(value), map[ getKey(value) ] );
 
-        this.pause();
+        timer.pause();
+        console.warn(step);
     }
     else {
         var contents = map[ getKey(value) ];
-        var str = JSON.stringify(contents);
-        
-        console.log( getKey(value), str.substr(0, 20), '...', str.substr(str.length - 30, 30) );
+
+        render(getKey(value), contents, value);
+
+        // var str = JSON.stringify(contents);
+        // console.log( getKey(value), str.substr(0, 20), '...', str.substr(str.length - 30, 30) );
     }
 
-    return getKey(value);
+    return {
+        isNeedToLoad: needs,
+        key: getKey(value)
+    }
+}
+
+function render(key, contents, value) {
+    if(typeof renderer === 'function') {
+        renderer(key, contents, value);
+    }   
 }
 
 function init(options) {
+    clear();
+    renderer = options.renderer;
     streamer = new resource.NetworkStreamer({
         url: window.localhost + 'resources/1min.csv',
         onLoaded: function (resp, contlen) {
@@ -98,32 +126,57 @@ function init(options) {
                 lastKey = keys[0];
             }
 
-            if(step == 0) {
+            if(step == 0 && isInit) {
                 console.warn(step)
                 timer = new Timer({
                     limit: 645,
-                    _speed: 100,
-                    onTick: trigger
+                    _speed: SPEED,
+                    onTick: trigger,
+                    onLast: function() {
+                        options.done();
+                    }
                 });
+                isInit = false;
             }
             else if(typeof options.conditions === 'function') {
                 options.conditions(step, timer, getKey, map, keys);
             }
+            // else if(step == 15) {
+                // 15번째가 마지막이 맞지만, 만일 done 해버린다면 타이머가 돌아가지 않을 것이다.
+                // options.done();
+            // }
             else {
-                options.done();
+                timer.tickValue = timer.tickValue - 1;
+
+                // 연속된 경우가 아니고, 점프한 경우에는 없다.
+                if(!!map[ getKey(timer.tickValue) ]) {
+                    console.log('continue 2..')
+                    render(getKey(timer.tickValue), map[ getKey(timer.tickValue) ], timer.tickValue);
+                }
+                timer.resume();
             }
         }
     });
 }
 
 function setProgress(value) {
-    console.warn('setProgress');
-    var current = trigger(value);
     
-    timer.pause();
-    timer.tickValue = value;
-    timer.resume();
-
+    var current = trigger(parseInt(value));
+    console.warn(getKey(value), current.isNeedToLoad);
+    
+    if(!current.isNeedToLoad) {
+        timer.pause();
+        timer.tickValue = value;
+        timer.resume();
+        console.log('로드필요없음')
+    }
+    else {
+        // step = Math.floor(value / 50) - 1;  // 얼추 로딩을 건너뛰어 보려 했으나, contents 길이가 제각각이라 정확히 알 수 없다.
+        step = Math.max( Math.floor(value / 50) - 2, -1 );  // 이전 값으로 돌릴려면 필요하네
+        timer.tickValue = value;
+        console.log('로드필요함')
+    }
+    
     return current;
 }
 

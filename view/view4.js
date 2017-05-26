@@ -3,42 +3,71 @@ import util from '../src/util';
 import Papa from 'papaparse';
 
 window.localhost = '../';
-// import spec from '../spec/view4.spec.fn';
 import view4 from '../src/view4';
+
+var $play = document.querySelector('#play');
+var $progress = document.querySelector('#progress');
+var $debug = document.querySelector('#debug');
+
+var canrender = true;
+
+$progress.addEventListener('change', function() {
+    console.warn(';;;')
+    view4.setProgress( this.value );
+});
+
+$progress.addEventListener('mousedown', function() {
+    console.log('mousedown')
+    canrender = false;
+});
+
+$progress.addEventListener('mouseup', function() {
+    console.log('mouseup')
+    canrender = true;
+});
+
+function start() {
+    view4.init({
+        done: done,
+        renderer: function(key, contents, value) {
+            if(canrender) {
+                var str = JSON.stringify(contents);
+                console.log(key, str.substr(0, 20), '...', str.substr(str.length - 30, 30) );
+                $debug.innerHTML = str;
+
+                if(typeof value != 'number') {
+                    debugger;
+                }
+                $progress.value = value;
+            }
+                
+        }
+    });
+}
+
+start();
+// spec7();
+
+
+
 
 function done() {
     console.warn('done');
 }
 
-function spec5() {
+function spec7() {
     view4.init({
         done: done,
-        conditions: function(step, timer, getKey, map) {
-            if(step == 1 || step == 2) {
-                console.log('>>>>>>', timer.tickValue - 1, getKey(timer.tickValue - 1), map[getKey(timer.tickValue - 1)]);
-                setTimeout(function() {
-                    console.log('>>>>>>', timer.tickValue, getKey(timer.tickValue), map[getKey(timer.tickValue)]);
-                    timer.resume();
-                }, 1000);
-            }
-            else if(step == 3) {
-                console.warn('done', step);
-            }
+        renderer: function(key, contents) {
+            var str = JSON.stringify(contents);
+            console.log(key, str.substr(0, 20), '...', str.substr(str.length - 30, 30) );
         }
     });
-
-}
-
-function spec6() {
-    view4.init({
-        done: done
-    });
-    
     setTimeout(function() {
-        view4.setProgress(30);
-    }, 1000);
+        var current = view4.setProgress(20);
+
+        // setTimeout(function() {
+        //     var current = view4.setProgress(30);
+        // }, 20000);
+    }, 2000);
 }
-
-spec6();
-
-// spec5();

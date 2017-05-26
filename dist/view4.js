@@ -16815,6 +16815,200 @@ function getRandomPort() {
 
 /***/ }),
 
+/***/ 15:
+/***/ (function(module, exports, __webpack_require__) {
+
+var resource = __webpack_require__(3).default.resource;
+var util = __webpack_require__(3).default.util;
+var Papa = __webpack_require__(6);
+var d3 = __webpack_require__(0);
+var Timer = __webpack_require__(3).default.Timer;
+
+var chunkSize = 1024 * 1024 * 1; // 1MB
+// var SPEED = 20;
+var SPEED = 500;
+var f = d3.timeParse("%Y%m%d%H%M");
+
+var step, lastKey, cut, streamer, timer, keys, map, cache, offset, renderer, isInit = true;
+
+function clear() {
+    step = 0;
+    lastKey = '201212191840';
+    cut = '';
+    streamer = undefined;
+    timer = undefined;
+    keys = undefined;
+    map = undefined;
+    cache = undefined;
+    offset = undefined;
+    renderer = undefined;    
+    isInit = true;
+}
+
+function trimFromWholeCountry(json) {
+    var index = 0;
+    for (; index < json.data.length; index++) {
+        var element = json.data[index];
+        if(element[1] == '전국') { // 새로운 timestamp는 전국 통계로부터 시작된다.
+            break;
+        }
+    }
+    json.data.splice(0, index); // 이전 timestamp 정보 날려버림
+    return json;
+}
+
+
+
+function getKey(value) {
+    var start = f("201212191840");
+    start.setMinutes(start.getMinutes() + value);
+    var key = d3.timeFormat("%Y%m%d%H%M")(start);
+    return key;
+}
+
+function isNeedToLoad(key) {
+    if (keys.indexOf(key) == -1) {
+        return true;
+    }
+    else {
+        return false;
+    }
+}            
+
+function trigger(value) {
+    var needs = isNeedToLoad( getKey(value) );
+    if(needs) {
+        console.log('-------', step, value, getKey(value), offset);
+        // var offset = contlen;
+
+        step++;
+        streamer.readChunk(offset * step);
+        lastKey = keys[keys.length - 1];
+        // lastKey 는 내용이 짤리게 될 것이다.
+
+        // cache 를 onLoaded scope 밖으로 안빼고 사용했더니,
+        // 계속 최초의 resp를 할당하는 문제가 있었다
+        // new Timer 할 때의 scope가 계속 남아있는 것
+        cut = cache.substr(cache.indexOf(lastKey));
+
+        // console.log(lastKey)
+        // console.log( getKey(value), map[ getKey(value) ] );
+
+        timer.pause();
+        console.warn(step);
+    }
+    else {
+        var contents = map[ getKey(value) ];
+
+        render(getKey(value), contents, value);
+
+        // var str = JSON.stringify(contents);
+        // console.log( getKey(value), str.substr(0, 20), '...', str.substr(str.length - 30, 30) );
+    }
+
+    return {
+        isNeedToLoad: needs,
+        key: getKey(value)
+    }
+}
+
+function render(key, contents, value) {
+    if(typeof renderer === 'function') {
+        renderer(key, contents, value);
+    }   
+}
+
+function init(options) {
+    clear();
+    renderer = options.renderer;
+    streamer = new resource.NetworkStreamer({
+        url: window.localhost + 'resources/1min.csv',
+        onLoaded: function (resp, contlen) {
+            cache = resp;
+            offset = contlen;
+
+            if(cut.length > 0) {
+                cache = cut + cache;
+            }
+
+            var json = Papa.parse(cache, {dynamicTyping: true});
+            json = trimFromWholeCountry(json);
+            map = util.getPriormap(json.data);
+
+            var sliderValue = 0;
+
+            keys = Object.keys(map);
+
+            ////// 11번째는 csv 가 짤려서 들어온다
+            if(step == 11) {
+                delete map[keys[0]];
+                keys = Object.keys(map);
+                lastKey = keys[0];
+            }
+
+            if(step == 0 && isInit) {
+                console.warn(step)
+                timer = new Timer({
+                    limit: 645,
+                    _speed: SPEED,
+                    onTick: trigger,
+                    onLast: function() {
+                        options.done();
+                    }
+                });
+                isInit = false;
+            }
+            else if(typeof options.conditions === 'function') {
+                options.conditions(step, timer, getKey, map, keys);
+            }
+            // else if(step == 15) {
+                // 15번째가 마지막이 맞지만, 만일 done 해버린다면 타이머가 돌아가지 않을 것이다.
+                // options.done();
+            // }
+            else {
+                timer.tickValue = timer.tickValue - 1;
+
+                // 연속된 경우가 아니고, 점프한 경우에는 없다.
+                if(!!map[ getKey(timer.tickValue) ]) {
+                    console.log('continue 2..')
+                    render(getKey(timer.tickValue), map[ getKey(timer.tickValue) ], timer.tickValue);
+                }
+                timer.resume();
+            }
+        }
+    });
+}
+
+function setProgress(value) {
+    
+    var current = trigger(parseInt(value));
+    console.warn(getKey(value), current.isNeedToLoad);
+    
+    if(!current.isNeedToLoad) {
+        timer.pause();
+        timer.tickValue = value;
+        timer.resume();
+        console.log('로드필요없음')
+    }
+    else {
+        // step = Math.floor(value / 50) - 1;  // 얼추 로딩을 건너뛰어 보려 했으나, contents 길이가 제각각이라 정확히 알 수 없다.
+        step = Math.max( Math.floor(value / 50) - 2, -1 );  // 이전 값으로 돌릴려면 필요하네
+        timer.tickValue = value;
+        console.log('로드필요함')
+    }
+    
+    return current;
+}
+
+module.exports = {
+    getKey: getKey,
+    trimFromWholeCountry: trimFromWholeCountry,
+    init: init,
+    setProgress: setProgress
+}
+
+/***/ }),
+
 /***/ 2:
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
@@ -16943,192 +17137,80 @@ Object.defineProperty(__webpack_exports__, "__esModule", { value: true });
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__src_util__ = __webpack_require__(1);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_2_papaparse__ = __webpack_require__(6);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_2_papaparse___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_2_papaparse__);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_3__src_view4__ = __webpack_require__(24);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_3__src_view4__ = __webpack_require__(15);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_3__src_view4___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_3__src_view4__);
 
 
 
 
 window.localhost = '../';
-// import spec from '../spec/view4.spec.fn';
+
+
+var $play = document.querySelector('#play');
+var $progress = document.querySelector('#progress');
+var $debug = document.querySelector('#debug');
+
+var canrender = true;
+
+$progress.addEventListener('change', function() {
+    console.warn(';;;')
+    __WEBPACK_IMPORTED_MODULE_3__src_view4___default.a.setProgress( this.value );
+});
+
+$progress.addEventListener('mousedown', function() {
+    console.log('mousedown')
+    canrender = false;
+});
+
+$progress.addEventListener('mouseup', function() {
+    console.log('mouseup')
+    canrender = true;
+});
+
+function start() {
+    __WEBPACK_IMPORTED_MODULE_3__src_view4___default.a.init({
+        done: done,
+        renderer: function(key, contents, value) {
+            if(canrender) {
+                var str = JSON.stringify(contents);
+                console.log(key, str.substr(0, 20), '...', str.substr(str.length - 30, 30) );
+                $debug.innerHTML = str;
+
+                if(typeof value != 'number') {
+                    debugger;
+                }
+                $progress.value = value;
+            }
+                
+        }
+    });
+}
+
+start();
+// spec7();
+
+
 
 
 function done() {
     console.warn('done');
 }
 
-function spec5() {
+function spec7() {
     __WEBPACK_IMPORTED_MODULE_3__src_view4___default.a.init({
         done: done,
-        conditions: function(step, timer, getKey, map) {
-            if(step == 1 || step == 2) {
-                console.log('>>>>>>', timer.tickValue - 1, getKey(timer.tickValue - 1), map[getKey(timer.tickValue - 1)]);
-                setTimeout(function() {
-                    console.log('>>>>>>', timer.tickValue, getKey(timer.tickValue), map[getKey(timer.tickValue)]);
-                    timer.resume();
-                }, 1000);
-            }
-            else if(step == 3) {
-                console.warn('done', step);
-            }
+        renderer: function(key, contents) {
+            var str = JSON.stringify(contents);
+            console.log(key, str.substr(0, 20), '...', str.substr(str.length - 30, 30) );
         }
     });
-
-}
-
-function spec6() {
-    __WEBPACK_IMPORTED_MODULE_3__src_view4___default.a.init({
-        done: done
-    });
-    
     setTimeout(function() {
-        __WEBPACK_IMPORTED_MODULE_3__src_view4___default.a.setProgress(30);
-    }, 1000);
-}
+        var current = __WEBPACK_IMPORTED_MODULE_3__src_view4___default.a.setProgress(20);
 
-spec6();
-
-// spec5();
-
-/***/ }),
-
-/***/ 24:
-/***/ (function(module, exports, __webpack_require__) {
-
-var resource = __webpack_require__(3).default.resource;
-var util = __webpack_require__(3).default.util;
-var Papa = __webpack_require__(6);
-var d3 = __webpack_require__(0);
-var Timer = __webpack_require__(3).default.Timer;
-
-var chunkSize = 1024 * 1024 * 1; // 1MB
-
-var f = d3.timeParse("%Y%m%d%H%M");
-var step = 0;
-var lastKey = '201212191840';
-var cut = '';
-var streamer, timer, keys, map, cache, offset;
-
-function trimFromWholeCountry(json) {
-    var index = 0;
-    for (; index < json.data.length; index++) {
-        var element = json.data[index];
-        if(element[1] == '전국') { // 새로운 timestamp는 전국 통계로부터 시작된다.
-            break;
-        }
-    }
-    json.data.splice(0, index); // 이전 timestamp 정보 날려버림
-    return json;
-}
-
-
-
-function getKey(value) {
-    var start = f("201212191840");
-    start.setMinutes(start.getMinutes() + value);
-    var key = d3.timeFormat("%Y%m%d%H%M")(start);
-    return key;
-}
-
-function isNeedToLoad(key) {
-    if (keys.indexOf(key) == -1) {
-        return true;
-    }
-    else {
-        return false;
-    }
-}            
-
-function trigger(value) {
-    if(isNeedToLoad( getKey(value) )) {
-        console.log('-------', step, value, getKey(value));
-        // var offset = contlen;
-        
-        step++;
-        streamer.readChunk(offset * step);
-        lastKey = keys[keys.length - 1];
-        // lastKey 는 내용이 짤리게 될 것이다.
-
-        // cache 를 onLoaded scope 밖으로 안빼고 사용했더니,
-        // 계속 최초의 resp를 할당하는 문제가 있었다
-        // new Timer 할 때의 scope가 계속 남아있는 것
-        cut = cache.substr(cache.indexOf(lastKey));
-
-        // console.log(lastKey)
-        // console.log( getKey(value), map[ getKey(value) ] );
-
-        this.pause();
-    }
-    else {
-        var contents = map[ getKey(value) ];
-        var str = JSON.stringify(contents);
-        
-        console.log( getKey(value), str.substr(0, 20), '...', str.substr(str.length - 30, 30) );
-    }
-
-    return getKey(value);
-}
-
-function init(options) {
-    streamer = new resource.NetworkStreamer({
-        url: window.localhost + 'resources/1min.csv',
-        onLoaded: function (resp, contlen) {
-            cache = resp;
-            offset = contlen;
-
-            if(cut.length > 0) {
-                cache = cut + cache;
-            }
-
-            var json = Papa.parse(cache, {dynamicTyping: true});
-            json = trimFromWholeCountry(json);
-            map = util.getPriormap(json.data);
-
-            var sliderValue = 0;
-
-            keys = Object.keys(map);
-
-            ////// 11번째는 csv 가 짤려서 들어온다
-            if(step == 11) {
-                delete map[keys[0]];
-                keys = Object.keys(map);
-                lastKey = keys[0];
-            }
-
-            if(step == 0) {
-                console.warn(step)
-                timer = new Timer({
-                    limit: 645,
-                    _speed: 100,
-                    onTick: trigger
-                });
-            }
-            else if(typeof options.conditions === 'function') {
-                options.conditions(step, timer, getKey, map, keys);
-            }
-            else {
-                options.done();
-            }
-        }
-    });
-}
-
-function setProgress(value) {
-    console.warn('setProgress');
-    var current = trigger(value);
-    
-    timer.pause();
-    timer.tickValue = value;
-    timer.resume();
-
-    return current;
-}
-
-module.exports = {
-    getKey: getKey,
-    trimFromWholeCountry: trimFromWholeCountry,
-    init: init,
-    setProgress: setProgress
+        // setTimeout(function() {
+        //     var current = view4.setProgress(30);
+        // }, 20000);
+    }, 2000);
 }
 
 /***/ }),
@@ -34379,8 +34461,7 @@ Object.defineProperty(__webpack_exports__, "__esModule", { value: true });
 
 
 /***/ }),
-/* 12 */,
-/* 13 */
+/* 12 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
@@ -34390,6 +34471,7 @@ class Timer {
         this.tickValue = 0;
         this.opt = opt || {};
         this.speed = this.opt._speed || 1000;
+        this.isPaused = false;
         
         this._initTimer();
     }
@@ -34420,6 +34502,7 @@ class Timer {
     }
 
     pause() {
+        this.isPaused = true;
         clearInterval(this.playTimer);
         this.playTimer = null;
 
@@ -34429,6 +34512,7 @@ class Timer {
     }
 
     resume() {
+        this.isPaused = false;
         this._initTimer();
     }
     
@@ -34437,7 +34521,7 @@ class Timer {
 /* harmony default export */ __webpack_exports__["a"] = (Timer);
 
 /***/ }),
-/* 14 */
+/* 13 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
@@ -34546,7 +34630,7 @@ function attachElectionInfo(electionInfo, features) {
 });
 
 /***/ }),
-/* 15 */
+/* 14 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
@@ -34694,16 +34778,17 @@ function asCarto(data) {
 });
 
 /***/ }),
+/* 15 */,
 /* 16 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
 Object.defineProperty(__webpack_exports__, "__esModule", { value: true });
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__src_render__ = __webpack_require__(15);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__src_render__ = __webpack_require__(14);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__src_resource__ = __webpack_require__(2);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__src_util__ = __webpack_require__(1);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_3__src_el__ = __webpack_require__(14);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_4__src_Timer__ = __webpack_require__(13);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_3__src_el__ = __webpack_require__(13);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_4__src_Timer__ = __webpack_require__(12);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_5_topojson_client__ = __webpack_require__(11);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_6_d3__ = __webpack_require__(0);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_6_d3___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_6_d3__);

@@ -72,15 +72,15 @@ test('순서대로 떨어지는가 확인', function(done) {
                 // var ress = resp.substr(0, resp.indexOf(parseInt(lastKey) + 1));
                 resp = cut + resp;
 
-                /*
+                
                 // 다음 csv 가 valid 하면됨
-                console.log(
-                    resp.substr(0,
-                        resp.indexOf(
-                            parseInt(resp.substr(0,12)) + 1
-                        ))
-                    );
-                    */
+                // console.log(
+                //     resp.substr(0,
+                //         resp.indexOf(
+                //             parseInt(resp.substr(0,12)) + 1
+                //         ))
+                //     );
+                    
             }
 
             var json = Papa.parse(resp, {dynamicTyping: true});
@@ -149,21 +149,75 @@ test('연속적 로딩', function(done) {
                 console.warn('done', step);
                 done();
             }
+        },
+        renderer: function(key, contents) {
+            var str = JSON.stringify(contents);
+            console.log(key, str.substr(0, 20), '...', str.substr(str.length - 30, 30) );
         }
     });
 
 });
 
-test('특정 위치에서 로딩', function(done) {
+test('특정 위치에서 로딩 1', function(done) {
     view4.init({
-        done: done
+        done: done,
+        conditions: function(step, timer, getKey, map) {
+            if(step == 1 || step == 2) {
+                timer.resume();
+            }
+            else if(step == 3) {
+                done();
+            }
+        },
+        renderer: function(key, contents) {
+            var str = JSON.stringify(contents);
+            console.log(key, str.substr(0, 20), '...', str.substr(str.length - 30, 30) );
+        }
     });
     setTimeout(function() {
         var current = view4.setProgress(30);
-        expect(current).toEqual('201212191910');
+        expect(current.key).toEqual('201212191910');
     }, 1000);
 });
 
+test('특정 위치에서 로딩 2', function(done) {
+    view4.init({
+        done: done,
+        conditions: function(step, timer, getKey, map) {
+            if(step < 5) {
+                timer.resume();
+            }
+            else if(step == 5) {
+                done();
+            }
+        },
+        renderer: function(key, contents) {
+            var str = JSON.stringify(contents);
+            console.log(key, str.substr(0, 20), '...', str.substr(str.length - 30, 30) );
+        }
+    });
+    setTimeout(function() {
+        var current = view4.setProgress(200);
+    }, 1000);
+});
+/*
+test('이전 위치로 되돌아감', function(done) {
+    view4.init({
+        done: done,
+        renderer: function(key, contents) {
+            var str = JSON.stringify(contents);
+            console.log(key, str.substr(0, 20), '...', str.substr(str.length - 30, 30) );
+        }
+    });
+    setTimeout(function() {
+        var current = view4.setProgress(600);
+
+        setTimeout(function() {
+            var current = view4.setProgress(30);
+        }, 2000);
+    }, 1000);
+});
+*/
 test('테스트 끝', () => {
     server.close();
 })
